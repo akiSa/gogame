@@ -16,15 +16,55 @@
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
 
+
 function preload() {
-  game.load.image('square', 'assets/square30.png');
+}
+function s4() {
+  return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+};
+
+function guid() {
+  return s4() + s4() + '-' +
+                   s4() + '-'  +
+                      s4() + '-' +
+                         s4() + '-' +
+                            s4() + s4() + s4();
 }
 
+function makeBasicStruct(names) {
+  var names = names.split(' ');
+  var count = names.length;
+  function constructor() {
+    for (var i = 0; i < count; i++) {
+      this[names[i]] = arguments[i];
+    }
+  }
+}
+var Action = makeBasicStruct("SX SY EX EY Type CT")
+var Stats = makeBasicStruct("Str Vit Int Wis Dex Spd")
+var Char = makeBasicStruct("ID HP CT Stats X Y ACList")
+
+//new Stats(1,2,3,4,5,6,7...)
+function Match(team_1, team_2, map) {
+  this.Teams = [
+    team_1,
+    team_2
+  ],
+  this.Map = map, //[][]Tile
+  this.ID = guid()
+};
+//new Match ([chars], [chars], [][]Tile)
+var map;
+var layer;
+var currentTile;
+
 function create() {
-  game.add.sprite(10,10, 'square');
+  game.stage.backgroundColor = '#787878';
+  
 }
 
 function update() {
+  
 }
 
 </script>
