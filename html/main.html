@@ -19,6 +19,8 @@ var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create
 
 function preload() {
   game.load.image('square', 'assets/square30.png')
+  game.load.image('menu_bak', 'assets/menu_background_120x100.png')
+  game.load.image('menu_but', 'assets/menu_button_100x32.png')
 }
 
 
@@ -127,7 +129,10 @@ function clicked() {
       //Show Menu:
       menu = game.add.group();
       //Shitty menu
+      //state is picking move
       makeMenu(selectedUnit, imagearr[selectedUnit].Char.X, imagearr[selectedUnit].Char.Y, menu)
+      //wait for response?
+      
       //menu.create(imagearr[selectedUnit].Image.x, imagearr[selectedUnit].Image.y, n)
     } else {
       if (selectedUnit != null) {
@@ -146,11 +151,25 @@ var menuOptions = [
 ]
 //Make menu, char x, y
 function makeMenu(ID, x, y, menuGrp) {
+  menuGrp.create(x + 100, y, 'menu_bak');
   count = 0
+  var image;
   menuOptions.forEach(function(ID, x, y, menuGrp) {
-      //THIS IS HARD
+      image = game.add.sprite(x + 100, y + 1 + (33 * count), 'menu_but');
+      //menuGrp.create(x + 100, y + 1 + (33 * count), 'menu_but');
+      image.inputEnabled=true;
+      image.Name = menuOptions[count]
+      image.events.onInputDown.add(menuClick, this);
+      text = game.add.text(x + 100, y + 5 + (33 * count), menuOptions[count]);
+      console.log(menuOptions[count])
+      menuGrp.add(image)
+      menuGrp.add(text)
       count ++;
+
     });
+}
+function menuClick(image) {
+  console.log(image.Name)
 }
 function moveChar(ID, destX, destY) {
   map[imagearr[ID].Char.X][imagearr[ID].Char.Y].Unit = null
