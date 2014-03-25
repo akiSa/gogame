@@ -1,13 +1,14 @@
 package main;
 
 import (
-	"github.com/gorilla/websocket"
+
 	//"code.google.com/p/go-uuid/uuid"
 )
 type Message struct {
 	Action string //String: turn/execute
 	Players []int `json:", omitempty"`
-	Actions []Action `json:", omitempty"`
+	//Actions []Action `json:", omitempty"`
+	Actions map[int][]Action `json:", omitempty"`
 }
 type Conflict struct {
 	Actions []*Action
@@ -25,18 +26,8 @@ type Conflict struct {
 //Unit *Char (pointer to the char on it)
 //}
 //That will speed up searching a lot, because you'd just do if map[x][y].Char != nil, blah
-type Match struct {
-	Teams [2][1]Char //Two teams of 1 chars each, shrug
-	//Map [][][]int //[X][y][depth, type (marsh etc) ]
-	Map [][]Tile
-	//Timer, or rather, a ticker, which will pause everytime a player gets a turn.
-	ID string //uuid
-	Socket *websocket.Conn
-}
-func (m *Match) Send (msg *Message) (err error){
-	err = m.Socket.WriteJSON(msg)
-	return
-}
+
+
 type Tile struct {
 	Depth int
 	Type int
@@ -71,6 +62,7 @@ type Actions struct {
 	TICKCT int
 }
 type Action struct {
+	ID int //Char ID.. tagging purposes, makes life so easy -_-
 	SX int //Starting X Pos
 	SY int //Starting Y Pos
 	EX int //Expected X Pos, or Target X Pos (for attacks)

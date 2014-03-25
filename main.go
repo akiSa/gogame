@@ -71,153 +71,125 @@ func remoteHandler(res http.ResponseWriter, req *http.Request) {
 	log.Printf("got websocket conn from %v\n", ws.RemoteAddr())
 
 	match := new(Match)
+	if err = ws.ReadJSON(match); err != nil {
+		panic("LOL WAT")
+	}
+	//Initialize the match, after that all messages will be in Message struct.
+	
 	match.Socket = ws
 	match.ID = uuid.New()
 	gloMatch = append(gloMatch, match)
 	
-	
-	//tickChan := time.NewTicker(time.Second).C
+	//msg := new (Message)
+	var msg *Message
 	var tickah *time.Ticker
-	//var execList []*Char
-	turn := false
-MainLoop:
-	for {
-		//NOTE, DO A VALIDITY CHECK EVERYTIME YOU READ JSON
-		if err = ws.ReadJSON(match); err != nil {
-			panic("LOL WAT")
-		}
-		tickah = time.NewTicker(time.Second)
-		select {
-		case <- tickah.C:
-			//First sweep, just add speed to CT's
-			for x, y := range match.Teams {
-				for x2, _ := range y {
-					//Check the actions list, then for every tick, execute (note, add execute code)
-					match.Teams[x][x2].CT += match.Teams[x][x2].Stats.Spd
-					if !turn && y[x2].CT >= 100 && len(y[x2].ACList.Actions) == 0{
-						//After adding, check the CT, if CT >= 100 then that player has a turn
-						tickah.Stop(); turn = true;
-					}
-				}
-			}
-			if turn {
-				//Someones turn, pause everything and whatnot
-				//Send message to client saying whose turn it is
-				//Messages to client will be so
-				//{
-				//  "Action": //string: turn, execute
-				//  If action == turn:
-				//  "Players": [ Char ID/int ]
-				//  If action == execute:
-				//  "Actions": [ { Action } ] // SX/SY will tell you which char it is
-				//}
-				msg := new (Message)
-				var turnList []int
-				for _, teams := range match.Teams {
-					for _, char := range teams {
-						if char.CT >= 100 {
-							char.CT = 100
-							turnList = append (turnList, char.ID)
-						}
-					}
-				}
-				msg.Players = turnList
-				//Send message over match.Socket
-				//
-				//
-				//
-				//
-				continue MainLoop
-			}
 
-			match.Execute()
+	tickah = time.NewTicker(time.Second)
+	for {
+		<- tickah.C
+		//After tick, do tick action.
+		if turn, list := match.Tick(); turn {
+			//Poll for new Actions, add to action list
+			//send list
+			//tickah.Stop() I'm dumb, channels are unbuffered.
+			msg = new (Message)
+			msg.Action = "turn"
+			msg.Players = list
+			match.Socket.WriteJSON(msg) //Send list of players that are to take an action.
+			if err = ws.ReadJSON(msg); err != nil {
+				panic(err)
+			}
+			//Read the action list, it will be in Message format, and will consist of
+			// Action: "turn"
+			// Actions: [ Actions ] ... maybe it should be map[int][]Action.. probably
+			//Which will look like... { 51: []Action, 2: []Action }, unfortunately it'll go through it in numerical order, but i'll make it execute in non-ordered fashion, or something, shrug
+			//msg.Actions = map[int][]Action
+			for x, y := range msg.Actions {
+				//x = char ID, y = []Action
+				//Search for char with ID
+				cl := match.Find(x) //link to char
+				if cl != nil {
+					cl.ACList.Actions = append( cl.ACList.Actions, y...)
+				}else {
+					//wat???
+					panic("wat???")
+				}
+			}
 		}
-		//execList = []*Char{}
-		tickah = time.NewTicker(time.Second)
+		match.Execute()
 	}
 }
+
+
+// Read:
+// 	if err = ws.ReadJSON(msg); err != nil {
+// 		panic("LOL WAT")
+// 	}
+// MainLoop:
+// 	for {
+// 		turn = false
+// 		//NOTE, DO A VALIDITY CHECK EVERYTIME YOU READ JSON
+// 		if err = ws.ReadJSON(msg); err != nil {
+// 			panic("LOL WAT")
+// 		}
+// 		//Do a parse of the message
+// 		tickah = time.NewTicker(time.Second)
+// 		select {
+// 		case <- tickah.C:
+// 			//First sweep, just add speed to CT's
+// 			for x, y := range match.Teams {
+// 				for x2, _ := range y {
+// 					//Check the actions list, then for every tick, execute (note, add execute code)
+// 					match.Teams[x][x2].CT += match.Teams[x][x2].Stats.Spd
+// 					if !turn && y[x2].CT >= 100 && len(y[x2].ACList.Actions) == 0{
+// 						//After adding, check the CT, if CT >= 100 then that player has a turn
+// 						tickah.Stop(); turn = true;
+// 					}
+// 				}
+// 			}
+// 			if turn {
+// 				//Someones turn, pause everything and whatnot
+// 				//Send message to client saying whose turn it is
+// 				//Messages to client will be so
+// 				//{
+// 				//  "Action": //string: turn, execute
+// 				//  If action == turn:
+// 				//  "Players": [ Char ID/int ]
+// 				//  If action == execute:
+// 				//  "Actions": [ { Action } ] // SX/SY will tell you which char it is
+// 				//}
+// 				msg := new (Message)
+// 				var turnList []int
+// 				for _, teams := range match.Teams {
+// 					for _, char := range teams {
+// 						if char.CT >= 100 {
+// 							char.CT = 100
+// 							turnList = append (turnList, char.ID)
+// 						}
+// 					}
+// 				}
+// 				msg.Players = turnList
+// 				//Send message over match.Socket
+// 				//Then wait for
+// 				//
+// 				//
+// 				//
+// 				continue MainLoop
+// 			}
+
+// 			match.Execute()
+// 		}
+// 		//execList = []*Char{}
+// 		tickah = time.NewTicker(time.Second)
+// 	}
+// }
 	// buf := new(bytes.Buffer)
 	// buf.ReadFrom(req.Body)
 	// //s := buf.String()
 	// log.Println(buf.String())
 
-//When executing, TICKCT += action.CT && if TICKCT > char speed, TICKCT = TICKCT - char speed and wait until next tick.
-//confList = [ (Conflicts) ]
-//Conflict = { [ Action ] }
-func (m *Match) Execute() {
-	var execList []*Char
-	for _, y := range m.Teams {
-		for _, char := range y {
-			if len(char.ACList.Actions) != 0 {
-				execList = append(execList, &char)
-			}
-		}		
-	}
-	if len(execList) > 0 {
-		confList := confCheck(execList)
-		//Find if any conflicts will be had first.
-		if len(confList) > 0 {
-			//If conflict, resolve all the conflicts in confList (resolution will be simple)
-			//Will actually change the action list
-		} 
-		//Execute here
-		msg := new (Message)
-		msg.Action = "execute"
-		acCH := make(chan Action)
-		doneCH := make(chan bool)
-		//var acCH chan Action
-		//var doneCH chan bool
-		for _, char := range execList {
-			go func (ch *Char, acCH chan Action, doneCH chan bool) {
-				//var x int
-				for {
-					ch.ACList.TICKCT += ch.ACList.Actions[0].CT
-					if ch.ACList.TICKCT > ch.Stats.Spd {
-						ch.ACList.TICKCT -= ch.Stats.Spd
-						doneCH <- true
-						return
-					}
-					//Actual execution now.
-					switch ch.ACList.Actions[0].Type[0] {
-					case 0: //Mobility, raw X/Y change.
-						//Check movement validity (Well, frontend will handle that, to ensure that movement is valid before the user is able to enter it.)
-						ch.setXY(ch.ACList.Actions[0].EX, ch.ACList.Actions[0].EY, m)
-					case 1: //Attack
-						target := m.findChar(ch.ACList.Actions[0].EX, ch.ACList.Actions[0].EY)
-						if target == nil {
-							//Then the skill is not being targetted, perform it anyway and check the skills' attack radius to see if any would be hit... idk why I even have this check >>
-							//Need to get the attack list
-							//Attack = Name, ID, Radius, Span (horiz only, vert only (in respect to unit), area (like a bomb)), Damage modifier, Main stat (str/int etc), anything else I can think of.. magic will be different ofc
-						} else {
-							//Do stuff
-							target.HP -= 1 //placeholder
-						}
-						
-					}
-					acCH <- ch.ACList.Actions[0]
-					//Dump ch.ACList.Actions[0]
-					ch.ACList.Actions = ch.ACList.Actions[1:]
-				}
 
-			}(char, acCH, doneCH)
-		}
-		for x := 1; x < len(execList); x++ {
-		chanLoop:
-			for {
-				select {
-				case ac := <- acCH:
-					msg.Actions = append(msg.Actions, ac)
-				case <- doneCH:
-					break chanLoop
-				}
-			}
-		}
-		//Send message
-		m.Send(msg)
-	}else {
-		return
-	}
-}
+
 func confCheck (eL []*Char) (confL []Conflict) {
 	for _, char := range eL {
 		//CHECK FOR CONFLICTS
