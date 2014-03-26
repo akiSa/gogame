@@ -1,64 +1,69 @@
-<!doctype html> 
-<html lang="en"> 
-<head> 
-  <meta charset="UTF-8" />
-  <title>Phaser - Making your first game, part 1</title>
-  <script type="text/javascript" src="js/phaser.min.js"></script>
+    <!doctype html> 
+    <html lang="en"> 
+    <head> 
+    <meta charset="UTF-8" />
+    <title>Phaser - Making your first game, part 1</title>
+    <script type="text/javascript" src="js/phaser.min.js"></script>
     <style type="text/css">
-        body {
-            margin: 0;
-        }
-    </style>
-</head>
-<body>
+    body {
+        margin: 0;
+    }
+</style>
+    </head>
+    <body>
 
-<script type="text/javascript">
+    <script type="text/javascript">
 
-var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
-
+var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update })
+//Time to be ghetto, Queue stuff
+var QEnd = false;
+var QArr = [];
+var QID = 0;
+var QType = null;
+var QState = null;
 
 function preload() {
-  game.load.image('square', 'assets/square30.png')
-  game.load.image('menu_bak', 'assets/menu_background_120x100.png')
-  game.load.image('menu_but', 'assets/menu_button_100x32.png')
+    game.load.image('square', 'assets/square30.png')
+    game.load.image('menu_bak', 'assets/menu_background_120x100.png')
+    game.load.image('menu_but', 'assets/menu_button_100x32.png')
 }
 
 
 function s4() {
-  return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
 };
 
 function guid() {
-  return s4() + s4() + '-' +
-                   s4() + '-'  +
-                      s4() + '-' +
-                         s4() + '-' +
-                            s4() + s4() + s4();
+    return s4() + s4() + '-' +
+        s4() + '-'  +
+        s4() + '-' +
+        s4() + '-' +
+        s4() + s4() + s4();
 }
 
 function makeBasicStruct(names) {
-  var names = names.split(' ');
-  var count = names.length;
-  function constructor() {
-    for (var i = 0; i < count; i++) {
-      this[names[i]] = arguments[i];
+    var names = names.split(' ');
+    var count = names.length;
+    function constructor() {
+	for (var i = 0; i < count; i++) {
+	    this[names[i]] = arguments[i];
+	}
     }
-  }
-  return constructor;
+    return constructor;
 }
-var Action = makeBasicStruct("SX SY EX EY Type CT")
+var Action = makeBasicStruct("ID SX SY EX EY Type CT")
 var Stats = makeBasicStruct("Str Vit Int Wis Dex Spd")
 var Char = makeBasicStruct("ID HP CT Stats X Y ACList")
 var Tile = makeBasicStruct("Depth Type Unit")
 var CharLink = makeBasicStruct("Image Char")
 //new Stats(1,2,3,4,5,6,7...)
 function Match(team_1, team_2, map) {
-  this.Teams = [
-    team_1,
-    team_2
-  ],
-  this.Map = map, //[][]Tile
-  this.ID = guid()
+    this.Teams = [
+	team_1,
+	team_2
+    ],
+    this.Map = map, //[][]Tile
+    this.ID = guid()
 };
 //new Match ([chars], [chars], [][]Tile)
 var map;
@@ -71,77 +76,98 @@ var imagearr = [];
 var selectedUnit = null;
 //Menu actions: Move, Attack, End
 function create() {
-  width = 3;
-  height = 3;
-  game.stage.backgroundColor = '#787878';
-  map = []
-  //Create map.
-  for (var i=0; i<width; i++) {
-    map[i] = [];
-    for (var x=0; x<height; x++) {
-      map[i][x] = new Tile(1, 1, null);
+    width = 3;
+    height = 3;
+    game.stage.backgroundColor = '#787878';
+    map = []
+    //Create map.
+    for (var i=0; i<width; i++) {
+	map[i] = [];
+	for (var x=0; x<height; x++) {
+	    map[i][x] = new Tile(1, 1, null);
+	}
     }
-  }
-  match = new Match(
-    [new Char(1, 10, 0, [1, 1, 1, 1, 1, 1], 0,0, [])],
-    [new Char(2, 10, 0, [1, 1, 1, 1, 1, 1], 2,2, [])],
-    map )
-  
-  
-  //console.log(JSON.stringify(match, undefined, 2))
+    match = new Match(
+	[new Char(1, 10, 0, [1, 1, 1, 1, 1, 1], 0,0, [])],
+	[new Char(2, 10, 0, [1, 1, 1, 1, 1, 1], 2,2, [])],
+	map )
+    
+    
+    //console.log(JSON.stringify(match, undefined, 2))
 
-  game.world.setBounds(0,0, width * 100, height * 100)
-  var graphics = game.add.graphics(0,0);
-  graphics.lineStyle(2, 0x0000FF, 1);
-  for (var i=0; i<width; i++) {
-    for (var x=0; x<height; x++) {
-      graphics.drawRect(i * 100, x * 100, 100, 100);
+    game.world.setBounds(0,0, width * 100, height * 100)
+    var graphics = game.add.graphics(0,0);
+    graphics.lineStyle(2, 0x0000FF, 1);
+    for (var i=0; i<width; i++) {
+	for (var x=0; x<height; x++) {
+	    graphics.drawRect(i * 100, x * 100, 100, 100);
+	}
     }
-  }
 
-  //console.log(JSON.stringify(match.Teams, undefined, 2))
-  for (var t=0; t < 2; t++) {
-    for (var i=0; i<match.Teams[t].length; i++) {
-      imagearr[match.Teams[t][i].ID] = new CharLink(game.add.sprite(match.Teams[t][i].X * 100 + 35, match.Teams[t][i].Y * 100 + 35, 'square'), match.Teams[t][i]);
-      //imagearr[match.Teams[t][i].ID].Image = game.add.sprite(match.Teams[t][i].X * 100 + 35, match.Teams[t][i].Y * 100 + 35, 'square');
-      //imagearr[match.Teams[t][i].ID].Char = match.Teams[t][i];
-      
-      map[match.Teams[t][i].X][match.Teams[t][i].Y].Unit = match.Teams[t][i].ID;
+    //console.log(JSON.stringify(match.Teams, undefined, 2))
+    for (var t=0; t < 2; t++) {
+	for (var i=0; i<match.Teams[t].length; i++) {
+	    imagearr[match.Teams[t][i].ID] = new CharLink(game.add.sprite(match.Teams[t][i].X * 100 + 35, match.Teams[t][i].Y * 100 + 35, 'square'), match.Teams[t][i]);
+	    //imagearr[match.Teams[t][i].ID].Image = game.add.sprite(match.Teams[t][i].X * 100 + 35, match.Teams[t][i].Y * 100 + 35, 'square');
+	    //imagearr[match.Teams[t][i].ID].Char = match.Teams[t][i];
+	    
+	    map[match.Teams[t][i].X][match.Teams[t][i].Y].Unit = match.Teams[t][i].ID;
+	}
     }
-  }
-  game.camera.setBoundsToWorld();
-  game.camera.setSize(width * 100, height * 100);
-  game.camera.setPosition(0,0);
-  //console.log(JSON.stringify(game.camera.view, undefined, 2));
-  game.input.onDown.add(clicked, this);
+    game.camera.setBoundsToWorld();
+    game.camera.setSize(width * 100, height * 100);
+    game.camera.setPosition(0,0);
+    //console.log(JSON.stringify(game.camera.view, undefined, 2));
+    game.input.onDown.add(clicked, this);
+
+    //Socket staato!
+    sock = new WebSocket("ws://localhost:8080/ws");
+    sock.onopen = function () {
+	var data = JSON.stringify(match);
+	sock.send(data)
+    };
+
+    sock.onmessage = function (message) {
+	var m = JSON.parse(message.data);
+	if (m.Action == "turn") {
+	    //for each player who has a turn, pop up menu and make queue, then send back action list
+	}else if (m.Action == "execute") {
+	    //Graphical shit, just do changes to reflect the actions given, one by one (there will be no conflicts)
+	}
+    };
 }
-
+var menu;
 function clicked() {
-  clickedX = Math.floor(game.input.activePointer.worldX / 100)
-  clickedY = Math.floor(game.input.activePointer.worldY / 100)
-  if (clickedX > 2|| clickedY > 2) {
-    console.log("Out of bounds", clickedX, clickedY);
-    return;
-  } else {
-    if (map[clickedX][clickedY].Unit != null){
-      selectedUnit = map[clickedX][clickedY].Unit;
-      console.log("Selected: "+ selectedUnit)
-      //Show Menu:
-      menu = game.add.group();
-      //Shitty menu
-      //state is picking move
-      makeMenu(selectedUnit, imagearr[selectedUnit].Char.X, imagearr[selectedUnit].Char.Y, menu)
-      //wait for response?
-      
-      //menu.create(imagearr[selectedUnit].Image.x, imagearr[selectedUnit].Image.y, n)
+    clickedX = Math.floor(game.input.activePointer.worldX / 100)
+    clickedY = Math.floor(game.input.activePointer.worldY / 100)
+    if (clickedX > 2|| clickedY > 2) {
+	console.log("Out of bounds", clickedX, clickedY);
+	return;
     } else {
-      if (selectedUnit != null) {
-        moveChar(selectedUnit, clickedX, clickedY)
-        selectedUnit = null;
-      }
+	if (map[clickedX][clickedY].Unit != null){
+	    selectedUnit = map[clickedX][clickedY].Unit;
+	    
+	    if (selectedUnit != null && QType == 1) {
+		//Only can attack other units atm. >_>
+		console.log("Adding Attack!")
+		addAction(clickedX, clickedY)
+		return;
+	    }
+	    console.log("Selected: "+ selectedUnit)
+	    //Show Menu:
+	    menu = game.add.group();
+	    //Shitty menu
+	    //state is picking move
+	    makeMenu(selectedUnit, imagearr[selectedUnit].Char.X, imagearr[selectedUnit].Char.Y, menu)
+	} else { //Is null
+	    if (QType == 0) {
+		console.log("Adding move!")
+		addAction(clickedX, clickedY)
+		return;
+	    }
+	}
+	console.log(clickedX, clickedY)
     }
-    console.log(clickedX, clickedY)
-  }
 }
 //When a message is gotten over websock
 //for each in msg.Players (list of int's)
@@ -149,51 +175,140 @@ function clicked() {
 //Send Match over websocket
 
 function PollTurn(ID) {
-  //imagearr[ID].Char == link to the char itself
-  //makeMenu()
-  //take Match and look for Char.Actions for the char with Char.ID == ID
+    //imagearr[ID].Char == link to the char itself
+    //makeMenu()
+    //take Match and look for Char.Actions for the char with Char.ID == ID
 }
 var menuOptions = [
-  "Move",
-  "Attack",
-  "End"
+    "Move",
+    "Attack",
+    "End"
 ]
 //Make menu, char x, y
+
 function makeMenu(ID, x, y, menuGrp) {
-  menuGrp.create(x + 100, y, 'menu_bak');
-  // for (var key in menuGrp) {
-  //   console.log(key)
-  // }
-  count = 0
-  var image;
-  menuOptions.forEach(function(){//ID, x, y, menuGrp) {
-      image = game.add.sprite(x + 100, y + 1 + (33 * count), 'menu_but');
-      image.inputEnabled=true;
-      image.Name = menuOptions[count]
-      image.events.onInputDown.add(menuClick, this);
-      text = game.add.text(x + 100, y + 5 + (33 * count), menuOptions[count]);
-      text.setStyle( { 'fill': '#FFFFFF' } )
-      console.log(menuOptions[count])
-      //menuGrp.addAt(image, count +1 * count)
-      menuGrp.add(image)
-      menuGrp.add(text)
-      count ++;
+    if (QState != null) {
+	return
+    }else {
+	QState = 1;
+    }
+    QEnd = false;
+    QArr = [];
+    QID = ID;
+    QType = null;
+    menuGrp.create(x + 100, y, 'menu_bak');
+    // for (var key in menuGrp) {
+    //   console.log(key)
+    // }
+    count = 0
+    var image;
+    menuOptions.forEach(function(){//ID, x, y, menuGrp) {
+	image = game.add.sprite(x + 100, y + 1 + (33 * count), 'menu_but');
+	image.inputEnabled=true;
+	image.Name = menuOptions[count]
+	image.events.onInputDown.add(menuClick, this);
+	text = game.add.text(x + 100, y + 5 + (33 * count), menuOptions[count]);
+	text.setStyle( { 'fill': '#FFFFFF' } )
+	console.log(menuOptions[count])
+	//menuGrp.addAt(image, count +1 * count)
+	menuGrp.add(image)
+	menuGrp.add(text)
+	count ++;
     });
 }
 function menuClick(image) {
-  console.log(image.Name)
+    QType = null;
+    console.log(image.Name)
+    switch (image.Name)
+    {
+    case "Move":
+	//Queue Move
+	//QArr.push(new Action (imagearr[QID].Char.X)) //var Action = makeBasicStruct("SX SY EX EY Type CT")
+	QType = 0;
+	break;
+    case "Attack":
+	//Queue Attack
+	QType = 1;
+	break;
+    case "End":
+	console.log(JSON.stringify(QArr))
+	QArr = [];
+	//Do stuff
+	QEnd = false;
+	QState = null;
+	menu.destroy(true,true)
+	break;
+	//End queue
+    }
+    
 }
+//Queue functions.
+function addAction(EX, EY) {
+    var found = null;
+    //NOTE, 10 (CT COST) IS TEMPORARY.
+    for (var ct = QArr.length - 1; ct >= 0 ; ct --) {
+	if (QArr[ct].Type[0] == 0){
+	    found = ct; break;
+	}
+    }
+    
+    if (QArr.length >= 1 && found != null) {
+	QArr[QArr.length] = new Action(QID, QArr[QArr.length-1].EX, QArr[QArr.length-1].EY, EX, EY, [QType, 0], 10)
+	//}
+    }else {
+	QArr[QArr.length] = new Action(QID, imagearr[QID].Char.X, imagearr[QID].Char.Y, EX, EY, [QType, 0], 10)
+    }
+    
+    QType = null;
+}
+// function addAttack(EX, EY) {
+//     var found = null;
+//     for (var ct = QArr.length - 1; ct >= 0 ; ct --) {
+// 	if (QArr[ct].Type[0] == 0){
+// 	    found = ct; break;
+// 	}
+//     }
+    
+//     if (QArr.length >= 1 && found != null) {
+// 	//if (QArr[QArr.length-1].Type[0] == 0) { FIND THE LATEST MOVE ACTION, IF NONE: USE SX
+// 	    QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, QArr[QArr.length-1].EX, QArr[QArr.length-1].EY, EX, EY, [QType, 0], 10)
+//     //}
+//     }else {
+// 	QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, imagearr[QID].Char.X, imagearr[QID].Char.Y, EX, EY, [QType, 0], 10)
+//     }
+    
+//     QType = null;
+// }
+// function addMove(EX, EY) {
+//     var found = null;
+//     for (var ct = QArr.length - 1; ct >= 0 ; ct --) {
+// 	if (QArr[ct].Type[0] == 0){
+// 	    found = ct; break;
+// 	}
+//     }
+    
+//     if (QArr.length >= 1 && found != null) {
+//     //moveChar(selectedUnit, EX, clickedY)
+// 	QArr[QArr.length] = new Action(QID, QArr[QArr.length-1].EX, QArr[QArr.length-1].EY, EX, EY, [QType, 0], 10)
+//     }else {
+// 	QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, imagearr[QID].Char.X, imagearr[QID].Char.Y, EX, EY, [QType, 0], 10)
+//     }
+
+//     QType = null;
+// }
+
+//End queue functions.
 function moveChar(ID, destX, destY) {
-  map[imagearr[ID].Char.X][imagearr[ID].Char.Y].Unit = null
-  imagearr[ID].Image.reset(destX * 100 + 35, destY * 100 + 35);
-  imagearr[ID].Char.X = destX; imagearr[ID].Char.Y = destY;
-  map[destX][destY].Unit = ID  
+    map[imagearr[ID].Char.X][imagearr[ID].Char.Y].Unit = null
+    imagearr[ID].Image.reset(destX * 100 + 35, destY * 100 + 35);
+    imagearr[ID].Char.X = destX; imagearr[ID].Char.Y = destY;
+    map[destX][destY].Unit = ID  
 }
 function update() {
-  
+    
 }
 
 </script>
 
 </body>
-</html>
+    </html>
