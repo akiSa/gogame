@@ -161,20 +161,23 @@ var menuOptions = [
 //Make menu, char x, y
 function makeMenu(ID, x, y, menuGrp) {
   menuGrp.create(x + 100, y, 'menu_bak');
+  // for (var key in menuGrp) {
+  //   console.log(key)
+  // }
   count = 0
   var image;
-  menuOptions.forEach(function(ID, x, y, menuGrp) {
+  menuOptions.forEach(function(){//ID, x, y, menuGrp) {
       image = game.add.sprite(x + 100, y + 1 + (33 * count), 'menu_but');
-      //menuGrp.create(x + 100, y + 1 + (33 * count), 'menu_but');
       image.inputEnabled=true;
       image.Name = menuOptions[count]
       image.events.onInputDown.add(menuClick, this);
       text = game.add.text(x + 100, y + 5 + (33 * count), menuOptions[count]);
+      text.setStyle( { 'fill': '#FFFFFF' } )
       console.log(menuOptions[count])
+      //menuGrp.addAt(image, count +1 * count)
       menuGrp.add(image)
       menuGrp.add(text)
       count ++;
-
     });
 }
 function menuClick(image) {
