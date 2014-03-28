@@ -2,10 +2,11 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
+//	"strconv"
 )
 
 type Match struct {
-	Teams [2][1]Char //Two teams of 1 chars each, shrug
+	Teams [][]Char //Two teams of 1 chars each, shrug
 	//Map [][][]int //[X][y][depth, type (marsh etc) ]
 	Map [][]Tile
 	//Timer, or rather, a ticker, which will pause everytime a player gets a turn.
@@ -35,7 +36,8 @@ func (m *Match) Tick () (turn bool, list []int) {
 			if team[y].CT >= 100 {
 				//Every action has a cost and this will execute right after the ticks/retrieve action list anyway.
 				turn = true
-				list = append(list, team[y].ID)
+				list = append(list, // strconv.Itoa(
+					team[y].ID)
 			}
 		}
 	}
@@ -106,6 +108,10 @@ func (m *Match) Execute () {
 			for {
 				select {
 				case ac := <- acCH:
+					// IDint, err := strconv.ParseInt(ac.ID, 10, 32)
+					// if err != nil {
+					// 	panic(err)
+					// }
 					msg.Actions[ac.ID] = append(msg.Actions[ac.ID], ac)
 				case <- doneCH:
 					break

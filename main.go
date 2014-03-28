@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"log"
-
+//	"encoding/json"
 //	"bytes"
 )
 
@@ -66,14 +66,28 @@ func (ch *Char) ACQC () {
 var gloMatch []*Match
 func remoteHandler(res http.ResponseWriter, req *http.Request) {
 	var err error;
-
+	//var msgB []byte;
 	ws, _ := websocket.Upgrade(res, req, nil, 1024, 1024)
 	log.Printf("got websocket conn from %v\n", ws.RemoteAddr())
 
 	match := new(Match)
+	// if _, msgB, err = ws.ReadMessage(); err != nil {
+	// 	panic(err)
+	// }else {
+	// 	println(string(msgB))
+	// 	err = json.Unmarshal(msgB, match)
+		
+	// 	if err != nil { panic(err) }
+	// }
 	if err = ws.ReadJSON(match); err != nil {
-		panic("LOL WAT")
+		panic(err)
 	}
+	for x,teams := range match.Teams {
+		for y, char := range teams {
+			match.Map[char.X][char.Y].Unit = &match.Teams[x][y]
+		}
+	}
+	//panic(match)
 	//Initialize the match, after that all messages will be in Message struct.
 	
 	match.Socket = ws
@@ -83,19 +97,28 @@ func remoteHandler(res http.ResponseWriter, req *http.Request) {
 	//msg := new (Message)
 	var msg *Message
 	var tickah *time.Ticker
-
+	log.Println("Timer initializing")
 	tickah = time.NewTicker(time.Second)
 	for {
 		<- tickah.C
+		log.Println("TICK!")
 		//After tick, do tick action.
 		if turn, list := match.Tick(); turn {
+			log.Println("TURN!")
 			//Poll for new Actions, add to action list
 			//send list
 			//tickah.Stop() I'm dumb, channels are unbuffered.
 			msg = new (Message)
 			msg.Action = "turn"
 			msg.Players = list
-			match.Socket.WriteJSON(msg) //Send list of players that are to take an action.
+			log.Printf("Sending %s!\n", msg)
+			err = match.Socket.WriteJSON(msg) //Send list of players that are to take an action.
+			if err != nil { panic(err) }
+			// blah, e := json.Marshal(msg)
+			// if e != nil {
+			// 	panic(e)
+			// }
+			// match.Socket.WriteMessage(0,blah)
 			if err = ws.ReadJSON(msg); err != nil {
 				panic(err)
 			}
@@ -104,10 +127,10 @@ func remoteHandler(res http.ResponseWriter, req *http.Request) {
 			// Actions: [ Actions ] ... maybe it should be map[int][]Action.. probably
 			//Which will look like... { 51: []Action, 2: []Action }, unfortunately it'll go through it in numerical order, but i'll make it execute in non-ordered fashion, or something, shrug
 			//msg.Actions = map[int][]Action
-			for x, y := range msg.Actions {
+			for _, y := range msg.Actions {
 				//x = char ID, y = []Action
 				//Search for char with ID
-				cl := match.Find(x) //link to char
+				cl := match.Find(y[0].ID) //link to char
 				if cl != nil {
 					cl.ACList.Actions = append( cl.ACList.Actions, y...)
 				}else {

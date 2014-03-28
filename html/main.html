@@ -21,6 +21,7 @@ var QArr = [];
 var QID = 0;
 var QType = null;
 var QState = null;
+var menu;
 
 function preload() {
     game.load.image('square', 'assets/square30.png')
@@ -74,6 +75,7 @@ var height;
 var imagearr = [];
 
 var selectedUnit = null;
+var sock;
 //Menu actions: Move, Attack, End
 function create() {
     width = 3;
@@ -88,8 +90,8 @@ function create() {
 	}
     }
     match = new Match(
-	[new Char(1, 10, 0, [1, 1, 1, 1, 1, 1], 0,0, [])],
-	[new Char(2, 10, 0, [1, 1, 1, 1, 1, 1], 2,2, [])],
+	[new Char(1, 10, 0, new Stats(1, 1, 1, 1, 1, 15), 0,0, {'Actions': [], 'TICKCT':0})],
+	[new Char(2, 10, 0, new Stats(1, 1, 1, 1, 1, 10), 2,2, {'Actions': [], 'TICKCT':0})],
 	map )
     
     
@@ -123,20 +125,38 @@ function create() {
     //Socket staato!
     sock = new WebSocket("ws://localhost:8080/ws");
     sock.onopen = function () {
-	var data = JSON.stringify(match);
+	//GHETTO TIME
+	dataJ = JSON.parse(JSON.stringify(match));
+	//console.log(JSON.stringify(dataJ.Map))
+	for (var z=0; z<dataJ.Map.length; z++) {
+	    for (var y=0; y<dataJ.Map[z].length; y++) {
+		//console.log(z,y)
+		dataJ.Map[z][y].Unit = null
+		//console.log(JSON.stringify(dataJ.Map[z][y]))
+	    }
+	}
+	var data = JSON.stringify(dataJ);
+	//console.log(data)
 	sock.send(data)
     };
 
     sock.onmessage = function (message) {
+	console.log(message.data)
+	//console.log(JSON.stringify(message))
 	var m = JSON.parse(message.data);
 	if (m.Action == "turn") {
 	    //for each player who has a turn, pop up menu and make queue, then send back action list
+	    for (var c=0; c < m.Players.length; c++){
+		menu = game.add.group();
+		makeMenu(m.Players[c], imagearr[m.Players[c]].Char.X, imagearr[m.Players[c]].Char.Y, menu);
+		
+	    }
 	}else if (m.Action == "execute") {
 	    //Graphical shit, just do changes to reflect the actions given, one by one (there will be no conflicts)
 	}
     };
 }
-var menu;
+
 function clicked() {
     clickedX = Math.floor(game.input.activePointer.worldX / 100)
     clickedY = Math.floor(game.input.activePointer.worldY / 100)
@@ -144,40 +164,23 @@ function clicked() {
 	console.log("Out of bounds", clickedX, clickedY);
 	return;
     } else {
-	if (map[clickedX][clickedY].Unit != null){
-	    selectedUnit = map[clickedX][clickedY].Unit;
-	    
-	    if (selectedUnit != null && QType == 1) {
-		//Only can attack other units atm. >_>
-		console.log("Adding Attack!")
-		addAction(clickedX, clickedY)
-		return;
-	    }
-	    console.log("Selected: "+ selectedUnit)
-	    //Show Menu:
-	    menu = game.add.group();
-	    //Shitty menu
-	    //state is picking move
-	    makeMenu(selectedUnit, imagearr[selectedUnit].Char.X, imagearr[selectedUnit].Char.Y, menu)
-	} else { //Is null
-	    if (QType == 0) {
+	switch (QType) {
+	case 0:
+	    //Has to be an empty spot selected.
+	    if (map[clickedX][clickedY].Unit == null){
 		console.log("Adding move!")
 		addAction(clickedX, clickedY)
 		return;
 	    }
+	    break;
+	case 1:
+	    console.log("Adding Attack!")
+	    addAction(clickedX, clickedY)
+	    break;
 	}
-	console.log(clickedX, clickedY)
-    }
-}
-//When a message is gotten over websock
-//for each in msg.Players (list of int's)
-//Poll(ID)
-//Send Match over websocket
 
-function PollTurn(ID) {
-    //imagearr[ID].Char == link to the char itself
-    //makeMenu()
-    //take Match and look for Char.Actions for the char with Char.ID == ID
+    }
+    console.log(clickedX, clickedY)
 }
 var menuOptions = [
     "Move",
@@ -185,8 +188,18 @@ var menuOptions = [
     "End"
 ]
 //Make menu, char x, y
-
+menuQueue = []
+var resultMsg;
+function makeMenuHelper(obj) {
+    //obj has ID, x, y, GRP
+    menuQueue[menuQueue.length] = obj
+}
 function makeMenu(ID, x, y, menuGrp) {
+    obj = {'ID': ID, 'X': x, 'Y': y, 'GRP': menuGrp}
+    makeMenuHelper(obj)
+    if (menuQueue.length != 1) { return } else { resultMsg = {'Action': 'turn', 'Actions': []}; buildMenu(obj) }
+}
+function buildMenu(obj){
     if (QState != null) {
 	return
     }else {
@@ -194,25 +207,25 @@ function makeMenu(ID, x, y, menuGrp) {
     }
     QEnd = false;
     QArr = [];
-    QID = ID;
+    QID = obj.ID;
     QType = null;
-    menuGrp.create(x + 100, y, 'menu_bak');
-    // for (var key in menuGrp) {
+    obj.GRP.create(obj.X + 100, obj.Y, 'menu_bak');
+    // for (var key in obj.GRP) {
     //   console.log(key)
     // }
     count = 0
     var image;
-    menuOptions.forEach(function(){//ID, x, y, menuGrp) {
-	image = game.add.sprite(x + 100, y + 1 + (33 * count), 'menu_but');
+    menuOptions.forEach(function(){//obj.ID, obj.X, y, obj.GRP) {
+	image = game.add.sprite(obj.X + 100, obj.Y + 1 + (33 * count), 'menu_but');
 	image.inputEnabled=true;
 	image.Name = menuOptions[count]
 	image.events.onInputDown.add(menuClick, this);
-	text = game.add.text(x + 100, y + 5 + (33 * count), menuOptions[count]);
+	text = game.add.text(obj.X + 100, obj.Y + 5 + (33 * count), menuOptions[count]);
 	text.setStyle( { 'fill': '#FFFFFF' } )
 	console.log(menuOptions[count])
-	//menuGrp.addAt(image, count +1 * count)
-	menuGrp.add(image)
-	menuGrp.add(text)
+	//obj.GRP.addAt(image, count +1 * count)
+	obj.GRP.add(image)
+	obj.GRP.add(text)
 	count ++;
     });
 }
@@ -231,12 +244,25 @@ function menuClick(image) {
 	QType = 1;
 	break;
     case "End":
+	resultMsg.Actions[resultMsg.Actions.length] = QArr
 	console.log(JSON.stringify(QArr))
+
+	//Cleanup
+	QID = 0;
 	QArr = [];
-	//Do stuff
 	QEnd = false;
 	QState = null;
-	menu.destroy(true,true)
+	menu.destroy(true,true);
+
+	menuQueue.splice(0,1)
+	if (menuQueue.length == 0) {
+	    console.log("SENDING RESULT")
+	    console.log(resultMsg)
+	    sock.send(JSON.stringify(resultMsg))
+	    resultMsg.Actions = {}
+	}else {
+	    buildMenu(menuQueue[0])
+	}
 	break;
 	//End queue
     }
@@ -261,41 +287,6 @@ function addAction(EX, EY) {
     
     QType = null;
 }
-// function addAttack(EX, EY) {
-//     var found = null;
-//     for (var ct = QArr.length - 1; ct >= 0 ; ct --) {
-// 	if (QArr[ct].Type[0] == 0){
-// 	    found = ct; break;
-// 	}
-//     }
-    
-//     if (QArr.length >= 1 && found != null) {
-// 	//if (QArr[QArr.length-1].Type[0] == 0) { FIND THE LATEST MOVE ACTION, IF NONE: USE SX
-// 	    QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, QArr[QArr.length-1].EX, QArr[QArr.length-1].EY, EX, EY, [QType, 0], 10)
-//     //}
-//     }else {
-// 	QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, imagearr[QID].Char.X, imagearr[QID].Char.Y, EX, EY, [QType, 0], 10)
-//     }
-    
-//     QType = null;
-// }
-// function addMove(EX, EY) {
-//     var found = null;
-//     for (var ct = QArr.length - 1; ct >= 0 ; ct --) {
-// 	if (QArr[ct].Type[0] == 0){
-// 	    found = ct; break;
-// 	}
-//     }
-    
-//     if (QArr.length >= 1 && found != null) {
-//     //moveChar(selectedUnit, EX, clickedY)
-// 	QArr[QArr.length] = new Action(QID, QArr[QArr.length-1].EX, QArr[QArr.length-1].EY, EX, EY, [QType, 0], 10)
-//     }else {
-// 	QArr[QArr.length] = new Action/*QArr.push(new Action*/(QID, imagearr[QID].Char.X, imagearr[QID].Char.Y, EX, EY, [QType, 0], 10)
-//     }
-
-//     QType = null;
-// }
 
 //End queue functions.
 function moveChar(ID, destX, destY) {

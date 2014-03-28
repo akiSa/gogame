@@ -8,7 +8,8 @@ type Message struct {
 	Action string //String: turn/execute
 	Players []int `json:", omitempty"`
 	//Actions []Action `json:", omitempty"`
-	Actions map[int][]Action `json:", omitempty"`
+	//Actions map[int][]Action `json:", omitempty"`
+	Actions [][]Action `json:", omitempty"`
 }
 type Conflict struct {
 	Actions []*Action
@@ -31,16 +32,17 @@ type Conflict struct {
 type Tile struct {
 	Depth int
 	Type int
-	Unit *Char
+	Unit *Char `json:'-'`
+	//Unit *int
 }
 type Char struct {
 	ID int
 	HP int
 	CT int
-	Stats statList
+	Stats statList 
 	X int // X Pos
 	Y int // Y Pos
-	ACList Actions//[]Action
+	ACList Actions //[]Action
 	//Team int // 0 or 1
 }
 func (ch *Char) setXY (X int, Y int, m *Match) {
